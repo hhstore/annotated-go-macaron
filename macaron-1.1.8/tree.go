@@ -1,17 +1,3 @@
-// Copyright 2015 The Macaron Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License"): you may
-// not use this file except in compliance with the License. You may obtain
-// a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations
-// under the License.
-
 package macaron
 
 import (
@@ -24,16 +10,20 @@ import (
 type patternType int8
 
 const (
-	_PATTERN_STATIC    patternType = iota // /home
+	_PATTERN_STATIC patternType = iota    // /home
 	_PATTERN_REGEXP                       // /:id([0-9]+)
 	_PATTERN_PATH_EXT                     // /*.*
 	_PATTERN_HOLDER                       // /:user
 	_PATTERN_MATCH_ALL                    // /*
 )
 
+
+// 关键模块:
+// gopkg.in/macaron.v1/router.go/NewRouteMap() 引用
+//
 // Leaf represents a leaf route information.
 type Leaf struct {
-	parent *Tree
+	parent     *Tree
 
 	typ        patternType
 	pattern    string
@@ -42,13 +32,13 @@ type Leaf struct {
 	reg        *regexp.Regexp
 	optional   bool
 
-	handle Handle
+	handle     Handle
 }
 
 var wildcardPattern = regexp.MustCompile(`:[a-zA-Z0-9]+`)
 
 func isSpecialRegexp(pattern, regStr string, pos []int) bool {
-	return len(pattern) >= pos[1]+len(regStr) && pattern[pos[1]:pos[1]+len(regStr)] == regStr
+	return len(pattern) >= pos[1] + len(regStr) && pattern[pos[1]:pos[1] + len(regStr)] == regStr
 }
 
 // getNextWildcard tries to find next wildcard and update pattern with corresponding regexp.
@@ -107,7 +97,7 @@ func getRawPattern(rawPattern string) string {
 
 		closeIdx := strings.Index(rawPattern, ")")
 		if closeIdx > -1 {
-			rawPattern = rawPattern[:startIdx] + rawPattern[closeIdx+1:]
+			rawPattern = rawPattern[:startIdx] + rawPattern[closeIdx + 1:]
 		}
 	}
 	return rawPattern
@@ -144,7 +134,7 @@ func NewLeaf(parent *Tree, pattern string, handle Handle) *Leaf {
 
 // URLPath build path part of URL by given pair values.
 func (l *Leaf) URLPath(pairs ...string) string {
-	if len(pairs)%2 != 0 {
+	if len(pairs) % 2 != 0 {
 		panic("number of pairs does not match")
 	}
 
@@ -160,14 +150,14 @@ func (l *Leaf) URLPath(pairs ...string) string {
 		} else if pairs[i][0] != ':' && pairs[i] != "*" && pairs[i] != "*.*" {
 			pairs[i] = ":" + pairs[i]
 		}
-		urlPath = strings.Replace(urlPath, pairs[i], pairs[i+1], 1)
+		urlPath = strings.Replace(urlPath, pairs[i], pairs[i + 1], 1)
 	}
 	return urlPath
 }
 
 // Tree represents a router tree in Macaron.
 type Tree struct {
-	parent *Tree
+	parent     *Tree
 
 	typ        patternType
 	pattern    string
@@ -175,8 +165,8 @@ type Tree struct {
 	wildcards  []string
 	reg        *regexp.Regexp
 
-	subtrees []*Tree
-	leaves   []*Leaf
+	subtrees   []*Tree
+	leaves     []*Leaf
 }
 
 func NewSubtree(parent *Tree, pattern string) *Tree {
@@ -252,7 +242,7 @@ func (t *Tree) addNextSegment(pattern string, handle Handle) *Leaf {
 	if i == -1 {
 		return t.addLeaf(pattern, handle)
 	}
-	return t.addSubtree(pattern[:i], pattern[i+1:], handle)
+	return t.addSubtree(pattern[:i], pattern[i + 1:], handle)
 }
 
 func (t *Tree) Add(pattern string, handle Handle) *Leaf {
@@ -270,19 +260,19 @@ func (t *Tree) matchLeaf(globLevel int, url string, params Params) (Handle, bool
 		case _PATTERN_REGEXP:
 			results := t.leaves[i].reg.FindStringSubmatch(url)
 			// Number of results and wildcasrd should be exact same.
-			if len(results)-1 != len(t.leaves[i].wildcards) {
+			if len(results) - 1 != len(t.leaves[i].wildcards) {
 				break
 			}
 
 			for j := 0; j < len(t.leaves[i].wildcards); j++ {
-				params[t.leaves[i].wildcards[j]] = results[j+1]
+				params[t.leaves[i].wildcards[j]] = results[j + 1]
 			}
 			return t.leaves[i].handle, true
 		case _PATTERN_PATH_EXT:
 			j := strings.LastIndex(url, ".")
 			if j > -1 {
 				params[":path"] = url[:j]
-				params[":ext"] = url[j+1:]
+				params[":ext"] = url[j + 1:]
 			} else {
 				params[":path"] = url
 			}
@@ -292,7 +282,7 @@ func (t *Tree) matchLeaf(globLevel int, url string, params Params) (Handle, bool
 			return t.leaves[i].handle, true
 		case _PATTERN_MATCH_ALL:
 			params["*"] = url
-			params["*"+com.ToStr(globLevel)] = url
+			params["*" + com.ToStr(globLevel)] = url
 			return t.leaves[i].handle, true
 		}
 	}
@@ -310,44 +300,44 @@ func (t *Tree) matchSubtree(globLevel int, segment, url string, params Params) (
 			}
 		case _PATTERN_REGEXP:
 			results := t.subtrees[i].reg.FindStringSubmatch(segment)
-			if len(results)-1 != len(t.subtrees[i].wildcards) {
+			if len(results) - 1 != len(t.subtrees[i].wildcards) {
 				break
 			}
 
 			for j := 0; j < len(t.subtrees[i].wildcards); j++ {
-				params[t.subtrees[i].wildcards[j]] = results[j+1]
+				params[t.subtrees[i].wildcards[j]] = results[j + 1]
 			}
 			if handle, ok := t.subtrees[i].matchNextSegment(globLevel, url, params); ok {
 				return handle, true
 			}
 		case _PATTERN_HOLDER:
-			if handle, ok := t.subtrees[i].matchNextSegment(globLevel+1, url, params); ok {
+			if handle, ok := t.subtrees[i].matchNextSegment(globLevel + 1, url, params); ok {
 				params[t.subtrees[i].wildcards[0]] = segment
 				return handle, true
 			}
 		case _PATTERN_MATCH_ALL:
-			if handle, ok := t.subtrees[i].matchNextSegment(globLevel+1, url, params); ok {
-				params["*"+com.ToStr(globLevel)] = segment
+			if handle, ok := t.subtrees[i].matchNextSegment(globLevel + 1, url, params); ok {
+				params["*" + com.ToStr(globLevel)] = segment
 				return handle, true
 			}
 		}
 	}
 
 	if len(t.leaves) > 0 {
-		leaf := t.leaves[len(t.leaves)-1]
+		leaf := t.leaves[len(t.leaves) - 1]
 		if leaf.typ == _PATTERN_PATH_EXT {
 			url = segment + "/" + url
 			j := strings.LastIndex(url, ".")
 			if j > -1 {
 				params[":path"] = url[:j]
-				params[":ext"] = url[j+1:]
+				params[":ext"] = url[j + 1:]
 			} else {
 				params[":path"] = url
 			}
 			return leaf.handle, true
 		} else if leaf.typ == _PATTERN_MATCH_ALL {
 			params["*"] = segment + "/" + url
-			params["*"+com.ToStr(globLevel)] = segment + "/" + url
+			params["*" + com.ToStr(globLevel)] = segment + "/" + url
 			return leaf.handle, true
 		}
 	}
@@ -359,7 +349,7 @@ func (t *Tree) matchNextSegment(globLevel int, url string, params Params) (Handl
 	if i == -1 {
 		return t.matchLeaf(globLevel, url, params)
 	}
-	return t.matchSubtree(globLevel, url[:i], url[i+1:], params)
+	return t.matchSubtree(globLevel, url[:i], url[i + 1:], params)
 }
 
 func (t *Tree) Match(url string) (Handle, Params, bool) {

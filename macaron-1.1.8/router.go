@@ -1,16 +1,3 @@
-// Copyright 2014 The Macaron Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License"): you may
-// not use this file except in compliance with the License. You may obtain
-// a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations
-// under the License.
 
 package macaron
 
@@ -20,6 +7,10 @@ import (
 	"sync"
 )
 
+
+//
+// HTTP标准方法:
+//
 var (
 	// Known HTTP methods.
 	_HTTP_METHODS = map[string]bool{
@@ -42,7 +33,7 @@ type routeMap struct {
 // NewRouteMap initializes and returns a new routeMap.
 func NewRouteMap() *routeMap {
 	rm := &routeMap{
-		routes: make(map[string]map[string]*Leaf),
+		routes: make(map[string]map[string]*Leaf),	// tree::Leaf
 	}
 	for m := range _HTTP_METHODS {
 		rm.routes[m] = make(map[string]*Leaf)
@@ -71,11 +62,13 @@ type group struct {
 	handlers []Handler
 }
 
+//-------------------------------------------
+// 路由:
 // Router represents a Macaron router layer.
 type Router struct {
-	m        *Macaron
+	m        *Macaron	// 指针
 	autoHead bool
-	routers  map[string]*Tree
+	routers  map[string]*Tree	// 路由
 	*routeMap
 	namedRoutes map[string]*Leaf
 
